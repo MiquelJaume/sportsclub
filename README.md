@@ -7,6 +7,8 @@ This project is a web application that mimics, at very small scale, an athletics
 
 It follows the [twelve-factor app methodology](https://www.12factor.net/), up to a certain point.
 
+> If you are somewhat familiar with web frameworks but not with Django, [this roadmap](https://roadmap.sh/django) can help you land the necessary conceps.
+
 ## Tech stack
 
 This project is a headless application using Django Ninja, split into different applications, making use of the following components:
@@ -15,8 +17,56 @@ This project is a headless application using Django Ninja, split into different 
 * A [PostgreSQL](https://postgresql.org/) database to store data.
 * A private back-office using [Django's admin panel](https://docs.djangoproject.com/en/stable/ref/contrib/admin/), for internal use, to manage application settings and browse and modify data.
 * [Django Ninja](https://django-ninja.dev/) to create the REST API (using Pydantic for validations).
+* [NGINX](https://nginx.org/) as reverse proxy and load balancer.
+* [Docker Compose](https://docs.docker.com/compose/) to define and manage the containerised services.
 
 To keep things simple, access to the database and tests will not use asynchronous methods. Moreover, the application neither includes authentication nor authorisation.
+
+> Each student can fork the project on Github so that he or she can start making modifications.
+
+## Security
+
+A CI/CD pipeline is a security-enabling framework, serving as the backbone for *DevSecOps*, some of its benefits being:
+
+* Automated security integration.
+* Reduced human error.
+* Faster patching.
+
+> Most of [the twelve factors](https://www.12factor.net/) are used in this example repository, therefore can be used to teach good security practices.
+
+Via the application in this repository, not only can students learn how to securely build a CI/CD pipeline, but also security concepts related to web applications, such as:
+
+* `Auditory` base class that includes auditory attributes and methods. To keep it simple, it supports soft-deletion and restoration, and datetimes for creation, modification and deletion of records. In a production environment, it would have to support more auditory attributes, to keep track of which user performed which operation, and GDPR methods, e.g., anonimisation and purging.
+* Use of `environment variables` to store configuration, via the `.env` file and the `environ` package.
+* Execution of application as stateless process.
+* Strict separation of build and run stages.
+* Explicit declaration and isolation of dependencies (the default `requirements.txt` file does not abide by this rule on purpose, so students can correct that).
+* Keeping development and production as similar as possible.
+* Maximize robustness with fast startup and graceful shutdown.
+* CORS Headers.
+* Public ID separate from internal ID (primary key).
+* Validation of input data via schemas.
+
+> Authentication is enabled in the admin panel using cookie-based sessions, but the endpoints do not support any form of authentication, e.g., bearer tokens or JSON Web Tokens, which will be added in a future version.
+
+Regarding security integration in the CI pipeline, this application does only linting using the [Ruff](https://docs.astral.sh/ruff/) library. Students are meant to add additional jobs that run more security tools, such as:
+
+* Bandit. A tool designed to find common security issues in Python code by processing the Abstract Syntax Tree (AST) to find events like SQL injection, XSS, or weak cryptography usage.
+* Safety. A dependency checker that scans your installed packages (via `requirements.txt` or environment) and compares them against a known database of vulnerabilities and malicious packages.
+* TruffleHog. A scanner that searches through your git history and file system for high-entropy strings and secrets, such as AWS keys, database passwords, and API tokens.
+* Semgrep. A fast, open-source static analysis tool that finds bugs and enforces code standards using logic that looks like the code you are writing; excellent for custom security rules.
+* Django Deployment Check. Django’s built-in command (`python manage.py check --deploy`) that validates your project settings against a checklist of production security best practices (e.g., `DEBUG` status, SSL config).
+* Pip-audit. An official tool from the Python Packaging Authority (PyPA) that scans Python environments for packages with known vulnerabilities using the Open Source Vulnerability database.
+* CodeQL. GitHub's semantic code analysis engine that treats code as data, allowing you to query for security vulnerabilities and bugs; it is the engine behind GitHub Advanced Security.
+* SonarCloud. A comprehensive platform that provides continuous inspection of code quality to detect bugs, code smells, and security vulnerabilities across the entire codebase.
+* Gitleaks. A lightweight, fast, and open-source tool specifically designed to detect hardcoded secrets like passwords, API keys, and tokens in your git repositories.
+
+## Additional concepts
+
+Additional concepts that can be taught using this repository are:
+
+* Blue/Green deployments.
+* Makefile to automate tasks.
 
 ## The model
 
@@ -54,16 +104,13 @@ The project has four apps, and models are spread among them:
 
 We will slightly modify the default structure of each app so that:
 
-| Module  | Default location | New location | Notes                                                                      |
-|---------|------------------|--------------|----------------------------------------------------------------------------|
-| Admin   | `admin.py`       |              | All admin models in one file                                               |
-| Models  | `models.py`      | `models/`    | One file per class, e.g., `models/address.py`                              |
-| API     |                  | `api.py`     | Endpoints of the entities of this app                                      |
-| Tests   | `tests.py`       | `tests/`     | One file per type of test and entity, e.g., `tests/test_models_address.py` |
-
-Taking
-
-* We will delete the `tests.py` file and create a `tests/` folder, where we will create different test files for the API endpoints (integration tests), the model (unit tests), the validation schema (unit tests).
+| Module  | Default location | New location | Notes                                |
+|---------|------------------|--------------|--------------------------------------|
+| Admin   | `admin.py`       | `admin/`     | One file per entity                  |
+| Models  | `models.py`      | `models/`    | One file per entity                  |
+| API     |                  | `api/`       | One file per entity                  |
+| Schemas |                  | `schemas/`   | One file per entity                  |
+| Tests   | `tests.py`       | `tests/`     | One file per type of test and entity |
 
 Taking `core` as an example, we will end up with this structure:
 
@@ -178,17 +225,17 @@ class Competition(Activity):
 
 Conceptual differences between using a single table with an ENUM and using abstract base class inheritance:
 
-| Aspect                | Single table and ENUM                            | Abstract base class inheritance                            |
-| --------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
-| Data shape            | All entities share identical columns             | Each subtype has its own table with shared + unique columns |
-| Querying              | Filter by `type`                                 | Query each subclass separately                             |
-| Flexibility           | Easy to add new types, but all share same schema | New subclasses can have unique schema                      |
-| Performance           | Simple, single-table queries                     | No JOINs needed; each subclass is independent              |
-| Normalization         | Less normalized (fields unused for some types)   | Fully normalized                                           |
-| Schema changes        | Changing one model affects one table             | Each subclass has its own migrations                       |
-| API/UI representation | Same serializer/view for all types               | Different serializers/views per subclass                   |
-| Teaching value        | Easier for beginners                             | Demonstrates inheritance and code reuse                    |
-| Use case              | Simple typed entity                              | True object hierarchy (e.g. `Competition`, `Training`)     |
+| Aspect                | Single table and ENUM                            | Abstract base class inheritance                               |
+|-----------------------|--------------------------------------------------|---------------------------------------------------------------|
+| Data shape            | All entities share identical columns             | Each subtype has its own table with shared and unique columns |
+| Querying              | Filter by `type`                                 | Query each subclass separately                                |
+| Flexibility           | Easy to add new types, but all share same schema | New subclasses can have unique schema                         |
+| Performance           | Simple, single-table queries                     | No JOINs needed; each subclass is independent                 |
+| Normalization         | Less normalized (fields unused for some types)   | Fully normalized                                              |
+| Schema changes        | Changing one model affects one table             | Each subclass has its own migrations                          |
+| API/UI representation | Same serializer/view for all types               | Different serializers/views per subclass                      |
+| Teaching value        | Easier for beginners                             | Demonstrates inheritance and code reuse                       |
+| Use case              | Simple typed entity                              | True object hierarchy (e.g. `Competition`, `Training`)        |
 
 With abstract base class inheritance, the parent class (`Activity`) does not create a database table. Instead, each child class (`Competition`, `Training`) gets its own table containing all fields from both the parent and child.
 
@@ -372,12 +419,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 environ.Env.read_env(BASE_DIR.parent / ".env")
 ```
 
-We can now load the variables from the `.env` file:
+We can now load the variables from the `.env` file, with default packages to make the pipeline less complicated:
 
 ```python
-SECRET_KEY = env("SECRET_KEY")
-DEBUG = env("DEBUG")
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+SECRET_KEY = env("SECRET_KEY", default="insecure-build-time-key")
+DEBUG = env("DEBUG", default=False)
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 ADMINS = env.list("ADMINS", default=[])
 MANAGERS = env.list("MANAGERS", default=[])
 SERVER_EMAIL = env("SERVER_EMAIL", default="root@localhost")
@@ -416,8 +463,8 @@ In the same `sportsclub/settings.py` file, configure now the middlewares:
 ```python
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -433,9 +480,9 @@ In the same file, also configure the PostgreSQL database:
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("POSTGRES_DB"),
-        "USER": env("POSTGRES_USER"),
-        "PASSWORD": env("POSTGRES_PASSWORD"),
+        "NAME": env("POSTGRES_DB", default="sportsclub"),
+        "USER": env("POSTGRES_USER", default="sportsclub"),
+        "PASSWORD": env("POSTGRES_PASSWORD", default="sportsclub"),
         "HOST": env("POSTGRES_HOST", default="localhost"),
         "PORT": env("POSTGRES_PORT", default="5432"),
     }
@@ -542,11 +589,21 @@ INSTALLED_APPS = [
 ]
 ```
 
-We will edit the `admin.py` file to add the entities we want to register with the `admin` module.
+For apps with just one entity, we will:
 
-We will create the `api.py` to define the endpoints for each app. For such apps with more than one entity, we will create the `api/` directory with one `.py` file for each entity inside. The same pattern will be followed with the models and the tests.
+* Edit the `admin.py` file to register the entity with the `admin` module.
+* Create the `api.py` file to define the endpoints for the entity.
+* Edit the `models.py` file to define the entity class.
+* Create the `schemas.py` file to define the Pydantic schemas used for request/response validation and serialisation.
 
-And we will also create the `schemas.py` file for the Pydantic schemas used for request/response validation and serialization.
+For such apps with more than one entity, we will not create such files, and delete the existing ones and, instead, we will create the following directories:
+
+* `admin/`, to register the entities with the `admin` module.
+* `api/`, to define the endpoints of the multiple entities.
+* `models/`, to define the model classes.
+* `schemas/,` to define the validation schemas.
+
+Regarding the `tests.py`file, in any case we will delete it and create the `tests/` directory, where we will place multiple files with unit, integration and acceptance tests. Even with just one entity we will have multiple test files.
 
 ## Model
 
@@ -762,12 +819,14 @@ Django analyzes all apps, determines dependencies, and creates migrations in the
 
 > Migration files are generated for each app separately.
 
-While we are in the development environment, if we need to reset (drop and recreate) the database, we can do so using the following command:
+While we are in the development environment, if we need to delete the data in the database, we can do so using the following command:
 
 ```bash
 cd ~/Projects/sportsclub/sportsclub
 python manage.py flush --no-input
 ```
+
+> The command `manage.py flush` keeps the schema intact, but it reloads the initial data fixtures, if any.
 
 Then migrate:
 
