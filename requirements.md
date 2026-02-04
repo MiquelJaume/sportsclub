@@ -10,7 +10,7 @@ El fitxer `requirements.txt` original presentava diversos riscos de seguretat i 
 Per resoldre aquests problemes, he implementat una estratègia de **"Pinning with Hashing"** (Fixació amb Hashing) utilitzant l'eina `pip-tools`.
 
 * **Metodologia:** He separat les dependències en dos fitxers diferenciats:
-    * **`requirements.in` (Fitxer d'Entrada):** Conté les dependències d'alt nivell que necessito (ex: `Django`), sense restriccions estrictes de versió, per permetre actualitzacions de seguretat futures.
+    * **`requirements.in` (Fitxer d'Entrada):** Conté les dependències d'alt nivell que necessit (ex: `Django`), sense restriccions estrictes de versió, per permetre actualitzacions de seguretat futures.
     * **`requirements.txt` (Fitxer de Bloqueig - Lock File):** Un fitxer generat automàticament que fixa estrictament *totes* les versions (incloses les subdependències transitives) i inclou els **hashes SHA256** per garantir la integritat.
 
 * **Execució:**
@@ -32,3 +32,5 @@ Per mantenir el software al llarg del temps (actualitzacions o canvis de llibrer
 Amb aquesta nova estructura, estem prevenint:
 * **Atacs a la Cadena de Subministrament (Supply Chain Attacks):** Si un atacant substitueix un paquet vàlid a PyPI per una versió compromesa (amb virus), la comprovació del hash fallarà i `pip` bloquejarà la instal·lació automàticament.
 * **Desviació de l'Entorn (Environment Drift):** Assegurem que Producció, Staging i Desenvolupament executin exactament el mateix codi, evitant errors (bugs) causats per petites diferències de versió en les subdependències.
+
+Link github: https://github.com/MiquelJaume/sportsclub
