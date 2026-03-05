@@ -1,6 +1,7 @@
 services:
   postgres:
     restart: always
+    env_file: .env.production
     # Tasca 2.2: Eliminem ports per fer la DB privada [cite: 20]
     ports: !reset []
     expose:
@@ -8,12 +9,14 @@ services:
 
   app-blue:
     restart: always
+    env_file: .env.production
     build:
       context: .
       dockerfile: docker/app/Dockerfile
 
   app-green:
     restart: always
+    env_file: .env.production
     build:
       context: .
       dockerfile: docker/app/Dockerfile
