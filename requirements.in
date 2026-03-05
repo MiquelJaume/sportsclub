@@ -1,6 +1,6 @@
 annotated-types
 asgiref
-Django
+Django==6.0.3
 django-cors-headers
 django-environ
 django-json-widget
